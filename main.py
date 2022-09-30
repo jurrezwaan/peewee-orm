@@ -87,6 +87,31 @@ def dinner_date_possible() -> List[models.Restaurant]:
     You want to eat at around 19:00 and your date is vegan.
     Query a list of restaurants that account for these constraints.
     """
+
+    restaurants_open = (models.Restaurant
+                        .select()
+                        .where(models.Restaurant.closing_time > '19:00')
+                        .dicts())
+    for restaurant in restaurants_open:
+        print(restaurant)
+
+    not_vegan_dish = (models.DishIngredient
+                      .select(models.DishIngredient,
+                              models.Ingredient, models.Dish)
+                      .join(models.Ingredient,
+                            on=(models.DishIngredient.
+                                ingredient_id == models.Ingredient.id))
+                      .switch()
+                      .join(models.Dish, on=(models.DishIngredient.
+                                             dish_id == models.Dish.id))
+                      .where(models.Ingredient.is_vegan == 0)
+                      .group_by(models.DishIngredient.dish_id)
+                      .dicts())
+    all_dishes = models.Dish.select().dicts()
+
+    vegan_dish = all_dishes - not_vegan_dish
+    print(vegan_dish)
+
     ...
 
 
