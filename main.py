@@ -103,7 +103,8 @@ def dinner_date_possible() -> List[models.Restaurant]:
                         .where(
                             (models.Restaurant.closing_time >= '19:00') &
                             (models.Ingredient.is_vegan == 1))
-                        .group_by(models.Restaurant.name))
+                        .group_by(models.Dish.name)
+                        .having(fn.Sum(models.Ingredient.is_vegan) >= 3))
 
     return restaurant_vegan
     ...
