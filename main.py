@@ -1,4 +1,3 @@
-from pdb import Restart
 import models
 from peewee import fn
 from typing import List
@@ -35,19 +34,20 @@ def vegetarian_dishes() -> List[models.Dish]:
     ...
 
     dish_list = []
-    query = models.Dish.select()
+
+    query = (models.Dish
+             .select(models.Dish, models.DishIngredient, models.Ingredient)
+             .join(models.DishIngredient,
+                   on=(models.Dish.id ==
+                       models.DishIngredient.dish_id))
+             .join(models.Ingredient,
+                   on=(models.DishIngredient.ingredient_id ==
+                       models.Ingredient.id))
+             .group_by(models.Dish.name)
+             .having(fn.MIN(models.Ingredient.is_vegetarian) == 1))
+
     for dish in query:
         dish_list.append(dish)
-
-    query = (models.DishIngredient.select()
-             .join(models.Dish)
-             .switch(models.DishIngredient)
-             .join(models.Ingredient)
-             .where(models.Ingredient.is_vegetarian == 0))
-
-    for dishingredient in query:
-        if dishingredient.dish in dish_list:
-            dish_list.remove(dishingredient.dish)
     return dish_list
 
 
@@ -58,16 +58,17 @@ def best_average_rating() -> models.Restaurant:
     rating on average
     """
 
-    query = (models.Rating
-             .select(models.Rating.id,
-                     models.Rating.restaurant_id,
-                     fn.AVG(models.Rating.rating),
-                     models.Rating.comment)
-             .group_by(models.Rating.restaurant_id)
-             .order_by(fn.AVG(models.Rating.rating).desc()).first())
-
-    return models.Restaurant.select().where(
-        query.restaurant_id == models.Restaurant.id)
+    return (models.Restaurant
+            .select(models.Restaurant,
+                    models.Rating.id,
+                    models.Rating.restaurant_id,
+                    fn.AVG(models.Rating.rating),
+                    models.Rating.comment)
+            .join(models.Rating, on=(
+                models.Restaurant.id == models.Rating.restaurant_id))
+            .group_by(models.Rating.restaurant_id)
+            .order_by(fn.AVG(models.Rating.rating).desc())
+            .first())
 
     ...
 
@@ -87,26 +88,24 @@ def dinner_date_possible() -> List[models.Restaurant]:
     You want to eat at around 19:00 and your date is vegan.
     Query a list of restaurants that account for these constraints.
     """
-    restaurant_vegan = (models.Restaurant
-                        .select(models.Restaurant, models.Dish,
-                                models.DishIngredient, models.Ingredient)
-                        .join(models.Dish, on=(
-                            models.Restaurant.id == models.Dish.served_at
-                        ))
-                        .join(models.DishIngredient, on=(
-                            models.Dish.id == models.DishIngredient.dish_id
-                        ))
-                        .join(models.Ingredient, on=(
-                            models.DishIngredient.ingredient_id ==
-                            models.Ingredient.id
-                        ))
-                        .where(
-                            (models.Restaurant.closing_time >= '19:00') &
-                            (models.Ingredient.is_vegan == 1))
-                        .group_by(models.Dish.name)
-                        .having(fn.Sum(models.Ingredient.is_vegan) >= 3))
+    return (models.Restaurant
+            .select(models.Restaurant, models.Dish,
+                    models.DishIngredient, models.Ingredient)
+            .join(models.Dish, on=(
+                models.Restaurant.id == models.Dish.served_at
+            ))
+            .join(models.DishIngredient, on=(
+                models.Dish.id == models.DishIngredient.dish_id
+            ))
+            .join(models.Ingredient, on=(
+                models.DishIngredient.ingredient_id ==
+                models.Ingredient.id
+            ))
+            .where(
+                models.Restaurant.closing_time >= '19:00')
+            .group_by(models.Dish.name)
+            .having(fn.MIN(models.Ingredient.is_vegan) == 1))
 
-    return restaurant_vegan
     ...
 
 
