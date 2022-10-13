@@ -1,3 +1,4 @@
+from pdb import Restart
 import models
 from peewee import fn
 from typing import List
@@ -16,11 +17,10 @@ def cheapest_dish() -> models.Dish:
     Query the database to retrieve the cheapest dish available
     """
 
-    query = (models.Dish
-             .select(models.Dish.id,
-                     models.Dish.name, models.Dish.served_at,
-                     fn.MIN(models.Dish.price_in_cents)))
-    return query
+    return (models.Dish
+            .select(models.Dish.id,
+                    models.Dish.name, models.Dish.served_at,
+                    fn.MIN(models.Dish.price_in_cents)))
 
 
 ...
@@ -87,31 +87,25 @@ def dinner_date_possible() -> List[models.Restaurant]:
     You want to eat at around 19:00 and your date is vegan.
     Query a list of restaurants that account for these constraints.
     """
+    restaurant_vegan = (models.Restaurant
+                        .select(models.Restaurant, models.Dish,
+                                models.DishIngredient, models.Ingredient)
+                        .join(models.Dish, on=(
+                            models.Restaurant.id == models.Dish.served_at
+                        ))
+                        .join(models.DishIngredient, on=(
+                            models.Dish.id == models.DishIngredient.dish_id
+                        ))
+                        .join(models.Ingredient, on=(
+                            models.DishIngredient.ingredient_id ==
+                            models.Ingredient.id
+                        ))
+                        .where(
+                            (models.Restaurant.closing_time >= '19:00') &
+                            (models.Ingredient.is_vegan == 1))
+                        .group_by(models.Restaurant.name))
 
-    restaurants_open = (models.Restaurant
-                        .select()
-                        .where(models.Restaurant.closing_time > '19:00')
-                        .dicts())
-    for restaurant in restaurants_open:
-        print(restaurant)
-
-    not_vegan_dish = (models.DishIngredient
-                      .select(models.DishIngredient,
-                              models.Ingredient, models.Dish)
-                      .join(models.Ingredient,
-                            on=(models.DishIngredient.
-                                ingredient_id == models.Ingredient.id))
-                      .switch()
-                      .join(models.Dish, on=(models.DishIngredient.
-                                             dish_id == models.Dish.id))
-                      .where(models.Ingredient.is_vegan == 0)
-                      .group_by(models.DishIngredient.dish_id)
-                      .dicts())
-    all_dishes = models.Dish.select().dicts()
-
-    vegan_dish = all_dishes - not_vegan_dish
-    print(vegan_dish)
-
+    return restaurant_vegan
     ...
 
 
@@ -124,4 +118,39 @@ def add_dish_to_menu() -> models.Dish:
     new ingredients however.
     Return your newly created dish
     """
+    ingredient_data = [
+        ("milk", True, False, True),
+        ("macaroni", True, True, False)
+    ]
+
+    for ingredient in ingredient_data:
+        models.Ingredient.get_or_create(
+            name=ingredient[0],
+            is_vegetarian=ingredient[1],
+            is_vegan=ingredient[2],
+            is_glutenfree=ingredient[3])
+
+    ingredient_1_id = models.Ingredient.get(
+        models.Ingredient.name == 'cheese').id
+    ingredient_2_id = models.Ingredient.get(
+        models.Ingredient.name == 'macaroni').id
+
+    models.Dish.get_or_create(
+        name='Mac n Cheese',
+        served_at_id=1,
+        price_in_cents=500)
+
+    dish_id = models.Dish.get(models.Dish.name == 'Mac n Cheese').id
+
+    models.DishIngredient.get_or_create(
+        dish_id=dish_id,
+        ingredient_id=ingredient_1_id)
+
+    models.DishIngredient.get_or_create(
+        dish_id=dish_id,
+        ingredient_id=ingredient_2_id)
+
+    return (models.Dish
+            .get(models.Dish.name == 'Mac n Cheese'))
+
     ...
