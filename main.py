@@ -16,10 +16,7 @@ def cheapest_dish() -> models.Dish:
     Query the database to retrieve the cheapest dish available
     """
 
-    return (models.Dish
-            .select(models.Dish.id,
-                    models.Dish.name, models.Dish.served_at,
-                    fn.MIN(models.Dish.price_in_cents)))
+    return models.Dish.select(fn.MIN(models.Dish.price_in_cents))
 
 
 ...
