@@ -16,10 +16,11 @@ def cheapest_dish() -> models.Dish:
     Query the database to retrieve the cheapest dish available
     """
 
-    return models.Dish.select(fn.MIN(models.Dish.price_in_cents))
+    for dish in models.Dish.select(
+            fn.MIN(models.Dish.price_in_cents)):
+        lowest_price = dish.price_in_cents
 
-
-...
+    return models.Dish.get(models.Dish.price_in_cents == lowest_price)
 
 
 def vegetarian_dishes() -> List[models.Dish]:
@@ -28,24 +29,22 @@ def vegetarian_dishes() -> List[models.Dish]:
     Query the database to return a list of dishes that contain only
     vegetarian ingredients.
     """
-    ...
 
-    dish_list = []
+    # dish_list = []
 
-    query = (models.Dish
-             .select(models.Dish, models.DishIngredient, models.Ingredient)
-             .join(models.DishIngredient,
-                   on=(models.Dish.id ==
-                       models.DishIngredient.dish_id))
-             .join(models.Ingredient,
-                   on=(models.DishIngredient.ingredient_id ==
-                       models.Ingredient.id))
-             .group_by(models.Dish.name)
-             .having(fn.MIN(models.Ingredient.is_vegetarian) == 1))
+    # query = (models.Dish
+    #          .select(models.Dish, models.DishIngredient, models.Ingredient)
+    #          .join(models.DishIngredient)
+    #          .join(models.Ingredient)
+    #          .group_by(models.Dish.name)
+    #          .having(fn.MIN(models.Ingredient.is_vegetarian) == 1))
 
-    for dish in query:
-        dish_list.append(dish)
-    return dish_list
+    # for dish in query:
+    #     dish_list.append(dish)
+    # return dish_list
+
+    return [dish for dish in models.Dish.select().join(models.DishIngredient).join(models.Ingredient)
+            if all(ingredient.is_vegetarian for ingredient in dish.ingredients)]
 
 
 def best_average_rating() -> models.Restaurant:
@@ -61,13 +60,10 @@ def best_average_rating() -> models.Restaurant:
                     models.Rating.restaurant_id,
                     fn.AVG(models.Rating.rating),
                     models.Rating.comment)
-            .join(models.Rating, on=(
-                models.Restaurant.id == models.Rating.restaurant_id))
+            .join(models.Rating)
             .group_by(models.Rating.restaurant_id)
             .order_by(fn.AVG(models.Rating.rating).desc())
             .first())
-
-    ...
 
 
 def add_rating_to_restaurant() -> None:
@@ -85,25 +81,17 @@ def dinner_date_possible() -> List[models.Restaurant]:
     You want to eat at around 19:00 and your date is vegan.
     Query a list of restaurants that account for these constraints.
     """
-    return (models.Restaurant
-            .select(models.Restaurant, models.Dish,
-                    models.DishIngredient, models.Ingredient)
-            .join(models.Dish, on=(
-                models.Restaurant.id == models.Dish.served_at
-            ))
-            .join(models.DishIngredient, on=(
-                models.Dish.id == models.DishIngredient.dish_id
-            ))
-            .join(models.Ingredient, on=(
-                models.DishIngredient.ingredient_id ==
-                models.Ingredient.id
-            ))
-            .where(
-                models.Restaurant.closing_time >= '19:00')
-            .group_by(models.Dish.name)
-            .having(fn.MIN(models.Ingredient.is_vegan) == 1))
 
-    ...
+    return [restaurant for restaurant in
+            (models.Restaurant
+             .select(models.Restaurant, models.Dish)
+             .join(models.Dish)
+             .join(models.DishIngredient)
+             .join(models.Ingredient)
+             .where(models.Restaurant.closing_time >= '19:00')
+             .group_by(models.Dish.name))
+            if all(ingredient.is_vegan for ingredient in restaurant.dish.ingredients)
+            ]
 
 
 def add_dish_to_menu() -> models.Dish:
@@ -149,5 +137,3 @@ def add_dish_to_menu() -> models.Dish:
 
     return (models.Dish
             .get(models.Dish.name == 'Mac n Cheese'))
-
-    ...
