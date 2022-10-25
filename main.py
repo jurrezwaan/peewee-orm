@@ -29,20 +29,6 @@ def vegetarian_dishes() -> List[models.Dish]:
     Query the database to return a list of dishes that contain only
     vegetarian ingredients.
     """
-
-    # dish_list = []
-
-    # query = (models.Dish
-    #          .select(models.Dish, models.DishIngredient, models.Ingredient)
-    #          .join(models.DishIngredient)
-    #          .join(models.Ingredient)
-    #          .group_by(models.Dish.name)
-    #          .having(fn.MIN(models.Ingredient.is_vegetarian) == 1))
-
-    # for dish in query:
-    #     dish_list.append(dish)
-    # return dish_list
-
     return [dish for dish in models.Dish.select().join(models.DishIngredient).join(models.Ingredient)
             if all(ingredient.is_vegetarian for ingredient in dish.ingredients)]
 

@@ -1,6 +1,6 @@
 import peewee
 
-db = peewee.SqliteDatabase(":memory:", pragmas={'foreign_keys': 1})
+db = peewee.SqliteDatabase(":memory:")
 
 
 class Ingredient(peewee.Model):
